@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Image Transformer Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/server.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            }
+        },
+
+        {
+            "name": "Image Transformer Browser",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:8080",
+            "userDataDir": true,
+            "webRoot": "${workspaceFolder}/web",
+            "runtimeExecutable": "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
+        },
+
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }
+
+    ],
+
+    "compounds": [
+
+        {
+            "name": "IMAGE TRANSFORMER: Full Stack",
+            "configurations": [
+                "Image Transformer Server",
+                "Image Transformer Browser"
+            ],
+            "stopAll": true
+        }
+
+    ]    
+}

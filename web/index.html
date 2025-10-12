@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Transformer</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Transformer</h1>
+            <p class="subtitle">Transform your images with powerful OpenCV operations</p>
+        </header>
+
+        <main>
+            <!-- Results Section (now at top) -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <h2>Results</h2>
+                <div class="images-comparison">
+                    <div class="image-container">
+                        <h3>Original</h3>
+                        <div class="image-wrapper">
+                            <img id="originalImage" alt="Original">
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <h3>Target</h3>
+                        <div class="image-wrapper">
+                            <img id="transformedImage" alt="Transformed" style="display: none;">
+                            <div class="image-placeholder" id="transformedPlaceholder">
+                                <p>Target Image</p>
+                            </div>
+                            <div class="loading-spinner" id="loadingSpinner" style="display: none;">
+                                <div class="spinner"></div>
+                                <p>Processing...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-secondary" id="downloadBtn">Download Result</button>
+                    <button class="btn btn-secondary" id="resetImageBtn">Reset Image</button>
+                    <button class="btn btn-secondary" id="updateOriginalBtn">Update Original</button>
+                    <button class="btn btn-secondary" id="resetBtn">Upload New Image</button>
+                </div>
+
+                <!-- Matrix Data Section -->
+                <div class="matrix-section">
+                    <div class="matrix-header" id="matrixHeader">
+                        <h3>Matrix Data</h3>
+                        <span class="collapse-indicator">+</span>
+                    </div>
+                    <div class="matrix-content collapsed" id="matrixContent">
+                        <div class="matrix-controls">
+                            <div class="matrix-control-group">
+                                <label class="matrix-toggle">
+                                    <input type="checkbox" id="showNumbersToggle">
+                                    <span>Show RGB Values</span>
+                                </label>
+                            </div>
+                            <div class="matrix-control-group">
+                                <label class="matrix-toggle">
+                                    <input type="checkbox" id="showGridToggle" checked>
+                                    <span>Show Grid Lines</span>
+                                </label>
+                            </div>
+                            <div class="matrix-control-group">
+                                <label>
+                                    <span>Sampling Size</span>
+                                    <span class="parameter-value" id="cellSizeValue">80px</span>
+                                </label>
+                                <input 
+                                    type="range" 
+                                    id="cellSizeSlider"
+                                    min="1" 
+                                    max="800" 
+                                    step="1" 
+                                    value="80"
+                                >
+                                <p class="parameter-description">Controls how many original pixels are averaged per cell. 1px = pixel-level detail (more cells), higher = broader regions (fewer cells)</p>
+                            </div>
+                        </div>
+                        <div class="matrix-grids">
+                            <div class="matrix-container">
+                                <h4>Original Matrix</h4>
+                                <div class="matrix-grid" id="originalMatrix"></div>
+                            </div>
+                            <div class="matrix-container">
+                                <h4>Target Matrix</h4>
+                                <div class="matrix-grid" id="targetMatrix"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transformation Selection -->
+            <section class="transformation-section" id="transformationSection" style="display: none;">
+                <h2>Select Transformation</h2>
+                
+                <!-- Parameters Panel (moved here) -->
+                <div class="parameters-panel" id="parametersPanel" style="display: none;">
+                    <h3>Transformation Parameters</h3>
+                    <div id="parametersContainer"></div>
+                </div>
+
+                <div class="categories-container">
+                    <!-- Geometric Transformations -->
+                    <div class="category">
+                        <div class="category-header" data-category="geometric">
+                            <div>
+                                <h3 class="category-title">Geometric Transformations</h3>
+                                <p class="category-description">Modify image position, size, and shape</p>
+                            </div>
+                            <span class="collapse-indicator">+</span>
+                        </div>
+                        <div class="category-content collapsed" id="geometricContent">
+                            <div class="transformations-grid" id="geometricTransforms"></div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Transformations -->
+                    <div class="category">
+                        <div class="category-header" data-category="filters">
+                            <div>
+                                <h3 class="category-title">Filters</h3>
+                                <p class="category-description">Apply blur, sharpening, and edge detection effects</p>
+                            </div>
+                            <span class="collapse-indicator">+</span>
+                        </div>
+                        <div class="category-content collapsed" id="filterContent">
+                            <div class="transformations-grid" id="filterTransforms"></div>
+                        </div>
+                    </div>
+
+                    <!-- Color Transformations -->
+                    <div class="category">
+                        <div class="category-header" data-category="color">
+                            <div>
+                                <h3 class="category-title">Color Transformations</h3>
+                                <p class="category-description">Adjust colors, brightness, contrast, and apply artistic effects</p>
+                            </div>
+                            <span class="collapse-indicator">+</span>
+                        </div>
+                        <div class="category-content collapsed" id="colorContent">
+                            <div class="transformations-grid" id="colorTransforms"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Image Upload Section (now at bottom) -->
+            <section class="upload-section" id="uploadSection">
+                <div class="upload-box" id="uploadBox">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    <p class="upload-text">Click to select or drag and drop an image</p>
+                    <p class="upload-hint">Supports: JPG, PNG, GIF, BMP</p>
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+                </div>
+            </section>
+
+            <!-- Status Messages -->
+            <div class="status-message" id="statusMessage"></div>
+        </main>
+
+        <footer>
+            <p>Powered by OpenCV and Socket.IO</p>
+        </footer>
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="library/socket.io.min.js"></script>
+    <!-- Application Script -->
+    <script type="module" src="script/app.js"></script>
+</body>
+</html>
