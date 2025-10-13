@@ -54,18 +54,6 @@
                     <div class="matrix-content collapsed" id="matrixContent">
                         <div class="matrix-controls">
                             <div class="matrix-control-group">
-                                <label class="matrix-toggle">
-                                    <input type="checkbox" id="showNumbersToggle">
-                                    <span>Show RGB Values</span>
-                                </label>
-                            </div>
-                            <div class="matrix-control-group">
-                                <label class="matrix-toggle">
-                                    <input type="checkbox" id="showGridToggle" checked>
-                                    <span>Show Grid Lines</span>
-                                </label>
-                            </div>
-                            <div class="matrix-control-group">
                                 <label>
                                     <span>Sampling Size</span>
                                     <span class="parameter-value" id="cellSizeValue">80px</span>
@@ -173,6 +161,51 @@
 
     <!-- Socket.IO Client -->
     <script src="library/socket.io.min.js"></script>
+    <!-- GPU.js Library - Must load before app.js -->
+    <script src="library/gpu-browser.min.js"></script>
+    
+    <!-- Debug: Check GPU structure -->
+    <script>
+        console.log('=== GPU.js Structure Analysis ===');
+        
+        if (typeof GPU !== 'undefined') {
+            console.log('GPU type:', typeof GPU);
+            console.log('GPU keys:', Object.keys(GPU));
+            console.log('GPU:', GPU);
+            
+            // Check for common patterns
+            if (GPU.GPU) {
+                console.log('✅ Found GPU.GPU - this is the constructor!');
+                console.log('   Try: new GPU.GPU()');
+                try {
+                    const test = new GPU.GPU();
+                    console.log('   ✅ SUCCESS with GPU.GPU():', test);
+                } catch (e) {
+                    console.error('   ❌ Failed:', e.message);
+                }
+            }
+            
+            if (GPU.default) {
+                console.log('✅ Found GPU.default - might be ES6 module export');
+                console.log('   Try: new GPU.default()');
+                try {
+                    const test = new GPU.default();
+                    console.log('   ✅ SUCCESS with GPU.default():', test);
+                } catch (e) {
+                    console.error('   ❌ Failed:', e.message);
+                }
+            }
+            
+            // List all properties
+            console.log('\nAll GPU properties:');
+            for (let key in GPU) {
+                console.log(`   ${key}:`, typeof GPU[key]);
+            }
+        }
+        
+        console.log('================================\n');
+    </script>
+    
     <!-- Application Script -->
     <script type="module" src="script/app.js"></script>
 </body>

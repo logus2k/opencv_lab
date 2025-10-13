@@ -12,10 +12,67 @@ class ImageTransformerClient {
         this.transformationsData = null;
         this.currentParameters = {};
         this.matrixCellSize = 80; // Default cell size for matrix
-        this.showMatrixNumbers = false; // Show/hide RGB numbers (off by default)
         this.currentImageMaxDimension = 800; // Track current image max dimension
         
+        // Initialize GPU.js
+        this.gpu = null;
+        this.useGPU = false;
+        this.initGPU();
+        
         this.init();
+    }
+    
+    /**
+     * Initialize GPU.js (must be called after DOM is ready)
+     */
+    initGPU() {
+        if (typeof GPU === 'undefined') {
+            console.error('❌ GPU is not defined. gpu-browser.min.js not loaded properly.');
+            console.log('📊 Using CPU processing only');
+            this.useGPU = false;
+            return;
+        }
+        
+        // Try different ways to access the GPU constructor
+        let GPUConstructor = null;
+        
+        if (typeof GPU === 'function') {
+            GPUConstructor = GPU;
+            console.log('Using GPU directly as constructor');
+        } else if (GPU.GPU && typeof GPU.GPU === 'function') {
+            GPUConstructor = GPU.GPU;
+            console.log('Using GPU.GPU as constructor');
+        } else if (GPU.default && typeof GPU.default === 'function') {
+            GPUConstructor = GPU.default;
+            console.log('Using GPU.default as constructor');
+        } else {
+            for (let key in GPU) {
+                if (typeof GPU[key] === 'function' && GPU[key].name === 'GPU') {
+                    GPUConstructor = GPU[key];
+                    console.log(`Using GPU.${key} as constructor`);
+                    break;
+                }
+            }
+        }
+        
+        if (GPUConstructor) {
+            try {
+                this.gpu = new GPUConstructor();
+                this.useGPU = true;
+                console.log('✅ GPU.js initialized successfully');
+                console.log('   Mode: GPU acceleration active');
+                console.log('   Mode detected:', this.gpu.mode || 'unknown');
+            } catch (error) {
+                console.error('❌ Failed to initialize GPU.js:', error);
+                console.log('📊 Falling back to CPU processing');
+                this.gpu = null;
+                this.useGPU = false;
+            }
+        } else {
+            console.error('❌ Could not find GPU constructor');
+            console.log('📊 Using CPU processing only');
+            this.useGPU = false;
+        }
     }
 
     /**
@@ -135,24 +192,17 @@ class ImageTransformerClient {
         // Category collapse/expand handlers
         this.setupCategoryCollapse();
 
-        // Matrix section collapse/expand
-        this.setupMatrixCollapse();
-
         // Matrix controls
         this.setupMatrixControls();
+
+        // Matrix section collapse/expand
+        this.setupMatrixCollapse();        
     }
 
     /**
      * Setup matrix control event listeners
      */
     setupMatrixControls() {
-        // Show/hide numbers toggle
-        const showNumbersToggle = document.getElementById('showNumbersToggle');
-        showNumbersToggle.addEventListener('change', (e) => {
-            this.showMatrixNumbers = e.target.checked;
-            this.toggleMatrixNumbers();
-        });
-
         // Cell size slider - update value display during drag
         const cellSizeSlider = document.getElementById('cellSizeSlider');
         cellSizeSlider.addEventListener('input', (e) => {
@@ -165,42 +215,6 @@ class ImageTransformerClient {
             this.matrixCellSize = parseInt(e.target.value);
             document.getElementById('cellSizeValue').textContent = `${this.matrixCellSize}px`;
             this.updateMatrixDisplays();
-        });
-    }
-
-    /**
-     * Update cell size slider max value based on image dimensions
-     * @param {HTMLImageElement} imgElement - The image element
-     */
-    updateCellSizeSliderRange(imgElement) {
-        const width = imgElement.naturalWidth || imgElement.width;
-        const height = imgElement.naturalHeight || imgElement.height;
-        const maxDimension = Math.max(width, height);
-        
-        this.currentImageMaxDimension = maxDimension;
-        
-        const slider = document.getElementById('cellSizeSlider');
-        slider.max = maxDimension;
-        
-        // Adjust current value if it exceeds new max
-        if (this.matrixCellSize > maxDimension) {
-            this.matrixCellSize = Math.floor(maxDimension / 2);
-            slider.value = this.matrixCellSize;
-            document.getElementById('cellSizeValue').textContent = `${this.matrixCellSize}px`;
-        }
-    }
-
-    /**
-     * Toggle visibility of RGB numbers in matrix cells
-     */
-    toggleMatrixNumbers() {
-        const cells = document.querySelectorAll('.matrix-cell');
-        cells.forEach(cell => {
-            if (this.showMatrixNumbers) {
-                cell.classList.remove('hide-numbers');
-            } else {
-                cell.classList.add('hide-numbers');
-            }
         });
     }
 
@@ -234,7 +248,6 @@ class ImageTransformerClient {
         
         categoryHeaders.forEach(header => {
             header.addEventListener('click', () => {
-                const category = header.dataset.category;
                 const content = header.nextElementSibling;
                 const indicator = header.querySelector('.collapse-indicator');
                 
@@ -271,8 +284,8 @@ class ImageTransformerClient {
         }
 
         this.selectedFile = file;
-        this.originalFile = file; // Current working original
-        this.trueOriginalFile = file; // Store the very first upload
+        this.originalFile = file;
+        this.trueOriginalFile = file;
         
         // Display original image
         const reader = new FileReader();
@@ -298,47 +311,6 @@ class ImageTransformerClient {
             this.showStatus('Image loaded successfully! Select a transformation.', 'success');
         };
         reader.readAsDataURL(file);
-    }
-
-    /**
-     * Show the upload section (called when "Upload New Image" is clicked)
-     */
-    showUploadSection() {
-        // Reset everything first
-        this.selectedFile = null;
-        this.originalFile = null;
-        this.trueOriginalFile = null;
-        this.selectedTransformation = null;
-        this.currentParameters = {};
-        this.resultBlob = null;
-
-        // Reset UI
-        document.getElementById('imageInput').value = '';
-        document.getElementById('originalImage').src = '';
-        const transformedImg = document.getElementById('transformedImage');
-        const placeholder = document.getElementById('transformedPlaceholder');
-        transformedImg.src = '';
-        transformedImg.style.display = 'none';
-        placeholder.style.display = 'flex';
-        
-        // Hide transformation and results sections
-        document.getElementById('transformationSection').style.display = 'none';
-        document.getElementById('resultsSection').style.display = 'none';
-        document.getElementById('parametersPanel').style.display = 'none';
-        
-        // Show upload section
-        document.getElementById('uploadSection').style.display = 'block';
-        
-        // Clear matrix displays
-        document.getElementById('originalMatrix').innerHTML = '<div class="matrix-placeholder">No data available</div>';
-        document.getElementById('targetMatrix').innerHTML = '<div class="matrix-placeholder">Apply a transformation to see matrix data</div>';
-        
-        // Remove all selections
-        document.querySelectorAll('.transform-card').forEach(card => {
-            card.classList.remove('selected');
-        });
-
-        this.showStatus('Ready for new image', 'info');
     }
 
     /**
@@ -503,7 +475,7 @@ class ImageTransformerClient {
     }
 
     /**
-     * Extract downsampled matrix data from an image element
+     * Extract downsampled matrix data from an image element using GPU acceleration
      * @param {HTMLImageElement} imgElement - The image element to process
      * @param {number} targetCellSize - Target size for each cell in pixels (default: 80)
      * @returns {Object} Matrix data with grid dimensions and RGB values
@@ -511,13 +483,15 @@ class ImageTransformerClient {
     extractMatrixData(imgElement, targetCellSize = 80) {
         // Create a temporary canvas
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { 
+            willReadFrequently: true
+        });
         
         // Set canvas size to image size
         canvas.width = imgElement.naturalWidth || imgElement.width;
         canvas.height = imgElement.naturalHeight || imgElement.height;
         
-        // Draw image to canvas
+        // Draw image to canvas - let alpha be handled naturally
         ctx.drawImage(imgElement, 0, 0);
         
         // Calculate grid dimensions based on target cell size
@@ -526,6 +500,102 @@ class ImageTransformerClient {
         
         const cellWidth = canvas.width / cols;
         const cellHeight = canvas.height / rows;
+        
+        // Check if GPU is available and working
+        if (!this.useGPU || !this.gpu) {
+            console.log('📊 Using CPU for matrix extraction');
+            return this.extractMatrixDataCPU(canvas, cols, rows, cellWidth, cellHeight);
+        }
+        
+        // Try GPU processing
+        try {
+            return this.extractMatrixDataGPU(canvas, cols, rows, cellWidth, cellHeight);
+        } catch (error) {
+            console.error('❌ GPU processing failed, falling back to CPU:', error);
+            this.useGPU = false; // Disable GPU for future calls
+            return this.extractMatrixDataCPU(canvas, cols, rows, cellWidth, cellHeight);
+        }
+    }
+    
+    /**
+     * GPU-accelerated matrix extraction
+     */
+    extractMatrixDataGPU(canvas, cols, rows, cellWidth, cellHeight) {
+        // Get pixel data
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = Array.from(imageData.data);
+        
+        // Create GPU kernel for parallel processing
+        const computeCellAverage = this.gpu.createKernel(function(pixels, imgWidth, imgHeight, cellWidth, cellHeight, channel) {
+            const col = this.thread.x;
+            const row = this.thread.y;
+            
+            const startX = Math.floor(col * cellWidth);
+            const startY = Math.floor(row * cellHeight);
+            const endX = Math.floor(Math.min((col + 1) * cellWidth, imgWidth));
+            const endY = Math.floor(Math.min((row + 1) * cellHeight, imgHeight));
+            
+            let sum = 0;
+            let count = 0;
+            
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    const idx = (y * imgWidth + x) * 4 + channel;
+                    sum += pixels[idx];
+                    count++;
+                }
+            }
+            
+            return sum / count;
+        }).setOutput([cols, rows]);
+        
+        // Compute averages for R, G, B channels in parallel
+        const startTime = performance.now();
+        
+        const rChannel = computeCellAverage(pixels, canvas.width, canvas.height, cellWidth, cellHeight, 0);
+        const gChannel = computeCellAverage(pixels, canvas.width, canvas.height, cellWidth, cellHeight, 1);
+        const bChannel = computeCellAverage(pixels, canvas.width, canvas.height, cellWidth, cellHeight, 2);
+        
+        const endTime = performance.now();
+        console.log(`⚡ GPU processing: ${(endTime - startTime).toFixed(2)}ms for ${cols}×${rows} cells`);
+        
+        // Convert GPU result to our matrix format
+        const matrixData = [];
+        for (let row = 0; row < rows; row++) {
+            const rowData = [];
+            for (let col = 0; col < cols; col++) {
+                rowData.push({
+                    r: Math.round(rChannel[row][col]),
+                    g: Math.round(gChannel[row][col]),
+                    b: Math.round(bChannel[row][col])
+                });
+            }
+            matrixData.push(rowData);
+        }
+        
+        // Clean up GPU kernels
+        computeCellAverage.destroy();
+        
+        return {
+            rows,
+            cols,
+            data: matrixData
+        };
+    }
+    
+    /**
+     * CPU fallback for matrix data extraction
+     * @param {HTMLCanvasElement} canvas - Canvas with drawn image
+     * @param {number} cols - Number of columns
+     * @param {number} rows - Number of rows
+     * @param {number} cellWidth - Width of each cell
+     * @param {number} cellHeight - Height of each cell
+     * @returns {Object} Matrix data
+     */
+    extractMatrixDataCPU(canvas, cols, rows, cellWidth, cellHeight) {
+        const ctx = canvas.getContext('2d');
+        const startTime = performance.now();
         
         // Extract and average pixel data for each cell
         const matrixData = [];
@@ -562,6 +632,9 @@ class ImageTransformerClient {
             matrixData.push(rowData);
         }
         
+        const endTime = performance.now();
+        console.log(`🐌 CPU processing: ${(endTime - startTime).toFixed(2)}ms for ${cols}×${rows} cells`);
+        
         return {
             rows,
             cols,
@@ -569,12 +642,6 @@ class ImageTransformerClient {
         };
     }
 
-    /**
-     * Display matrix data in the UI
-     * @param {Object} matrixData - Matrix data object
-     * @param {string} containerId - ID of the container element
-     * @param {HTMLImageElement} sourceImage - The source image element for sizing reference
-     */
     displayMatrix(matrixData, containerId, sourceImage) {
         const container = document.getElementById(containerId);
         
@@ -585,71 +652,67 @@ class ImageTransformerClient {
         
         const { rows, cols, data } = matrixData;
         
-        // Get the displayed size of the image (not natural size)
+        // Get the displayed size of the image
         const displayedWidth = sourceImage.offsetWidth;
         const displayedHeight = sourceImage.offsetHeight;
         
-        // Calculate cell display size to match the displayed image size
-        const cellDisplayWidth = displayedWidth / cols;
-        const cellDisplayHeight = displayedHeight / rows;
-        
-        // Use square cells with the average dimension
-        const cellDisplaySize = (cellDisplayWidth + cellDisplayHeight) / 2;
-        
-        // Calculate appropriate font size based on cell display size
-        // Hide text if cells are too small
-        let fontSize = 0;
-        if (cellDisplaySize >= 8) {
-            fontSize = Math.max(6, Math.min(12, cellDisplaySize / 2.5));
-        }
-        
-        // Adjust gap based on cell size
-        const gap = cellDisplaySize < 3 ? 0 : (cellDisplaySize < 10 ? 0.5 : 1);
-        container.style.gap = `${gap}px`;
-        
-        // Set grid template with explicit sizes
-        container.style.gridTemplateColumns = `repeat(${cols}, ${cellDisplaySize}px)`;
-        container.style.gridTemplateRows = `repeat(${rows}, ${cellDisplaySize}px)`;
-        
-        // Clear existing content
+        // Clear container and create canvas
         container.innerHTML = '';
         
-        // Create cells
+        // Remove grid display properties from container
+        container.style.display = 'block';
+        container.style.background = 'transparent';
+        container.style.padding = '0';
+        container.style.border = 'none';
+        container.style.gap = '0';
+        
+        // Create canvas with exact displayed image dimensions (no scaling artifacts)
+        const canvas = document.createElement('canvas');
+        canvas.width = displayedWidth;
+        canvas.height = displayedHeight;
+        canvas.style.width = `${displayedWidth}px`;
+        canvas.style.height = `${displayedHeight}px`;
+        canvas.style.display = 'block';
+        canvas.style.margin = '0';
+        canvas.style.padding = '0';
+        
+        const ctx = canvas.getContext('2d', {
+            alpha: false  // Opaque rendering
+        });
+        
+        // Enable smoothing for natural photo rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        const startTime = performance.now();
+        
+        // Calculate cell sizes based on canvas dimensions
+        const cellWidth = displayedWidth / cols;
+        const cellHeight = displayedHeight / rows;
+        
+        // Draw each cell as a filled rectangle with integer coordinates to avoid gaps
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
                 const cell = data[row][col];
-                const cellDiv = document.createElement('div');
-                cellDiv.className = 'matrix-cell';
                 
-                // Apply hide-numbers class if needed
-                if (!this.showMatrixNumbers) {
-                    cellDiv.classList.add('hide-numbers');
-                }
+                // Calculate integer pixel coordinates to avoid sub-pixel rendering gaps
+                const x = Math.floor(col * cellWidth);
+                const y = Math.floor(row * cellHeight);
+                const nextX = Math.floor((col + 1) * cellWidth);
+                const nextY = Math.floor((row + 1) * cellHeight);
+                const width = nextX - x;
+                const height = nextY - y;
                 
-                // Create pastel background color
-                // Use a lighter version of the RGB values for better readability
-                const pastelR = Math.round(cell.r * 0.6 + 255 * 0.4);
-                const pastelG = Math.round(cell.g * 0.6 + 255 * 0.4);
-                const pastelB = Math.round(cell.b * 0.6 + 255 * 0.4);
-                
-                cellDiv.style.backgroundColor = `rgb(${pastelR}, ${pastelG}, ${pastelB})`;
-                
-                // Set explicit cell size (square cells)
-                cellDiv.style.width = `${cellDisplaySize}px`;
-                cellDiv.style.height = `${cellDisplaySize}px`;
-                cellDiv.style.minHeight = `${cellDisplaySize}px`;
-                cellDiv.style.fontSize = `${fontSize}px`;
-                
-                // Adjust padding based on cell size
-                const padding = cellDisplaySize < 5 ? 0 : (cellDisplaySize < 15 ? 1 : 2);
-                cellDiv.style.padding = `${padding}px`;
-                
-                // Format with spaces after commas to allow wrapping
-                cellDiv.textContent = `${cell.r}, ${cell.g}, ${cell.b}`;
-                
-                container.appendChild(cellDiv);
+                // Use exact RGB values - no modification
+                ctx.fillStyle = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
+                ctx.fillRect(x, y, width, height);
             }
         }
+        
+        const endTime = performance.now();
+        console.log(`🎨 Canvas rendering: ${(endTime - startTime).toFixed(2)}ms for ${(cols * rows).toLocaleString()} cells`);
+        
+        container.appendChild(canvas);
     }
 
     /**
@@ -672,6 +735,28 @@ class ImageTransformerClient {
         } else {
             // Show placeholder for target
             document.getElementById('targetMatrix').innerHTML = '<div class="matrix-placeholder">Apply a transformation to see matrix data</div>';
+        }
+    }
+
+    /**
+     * Update cell size slider max value based on image dimensions
+     * @param {HTMLImageElement} imgElement - The image element
+     */
+    updateCellSizeSliderRange(imgElement) {
+        const width = imgElement.naturalWidth || imgElement.width;
+        const height = imgElement.naturalHeight || imgElement.height;
+        const maxDimension = Math.max(width, height);
+        
+        this.currentImageMaxDimension = maxDimension;
+        
+        const slider = document.getElementById('cellSizeSlider');
+        slider.max = maxDimension;
+        
+        // Adjust current value if it exceeds new max
+        if (this.matrixCellSize > maxDimension) {
+            this.matrixCellSize = Math.floor(maxDimension / 2);
+            slider.value = this.matrixCellSize;
+            document.getElementById('cellSizeValue').textContent = `${this.matrixCellSize}px`;
         }
     }
 
@@ -794,6 +879,47 @@ class ImageTransformerClient {
     }
 
     /**
+     * Show the upload section (called when "Upload New Image" is clicked)
+     */
+    showUploadSection() {
+        // Reset everything first
+        this.selectedFile = null;
+        this.originalFile = null;
+        this.trueOriginalFile = null;
+        this.selectedTransformation = null;
+        this.currentParameters = {};
+        this.resultBlob = null;
+
+        // Reset UI
+        document.getElementById('imageInput').value = '';
+        document.getElementById('originalImage').src = '';
+        const transformedImg = document.getElementById('transformedImage');
+        const placeholder = document.getElementById('transformedPlaceholder');
+        transformedImg.src = '';
+        transformedImg.style.display = 'none';
+        placeholder.style.display = 'flex';
+        
+        // Hide transformation and results sections
+        document.getElementById('transformationSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'none';
+        document.getElementById('parametersPanel').style.display = 'none';
+        
+        // Show upload section
+        document.getElementById('uploadSection').style.display = 'block';
+        
+        // Clear matrix displays
+        document.getElementById('originalMatrix').innerHTML = '<div class="matrix-placeholder">No data available</div>';
+        document.getElementById('targetMatrix').innerHTML = '<div class="matrix-placeholder">Apply a transformation to see matrix data</div>';
+        
+        // Remove all selections
+        document.querySelectorAll('.transform-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        this.showStatus('Ready for new image', 'info');
+    }
+
+    /**
      * Show loading spinner
      */
     showLoading() {
@@ -827,7 +953,6 @@ class ImageTransformerClient {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Create instance of the client
-    // Change 'http://localhost:8080' to your server URL if different
     const client = new ImageTransformerClient('http://localhost:8080');
     
     // Make client accessible globally for debugging (optional)
