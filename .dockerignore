@@ -1,0 +1,17 @@
+.git
+.gitignore
+.vscode
+__pycache__
+*.pyc
+lib/
+lib64
+include/
+bin/
+share/
+etc/
+pyvenv.cfg
+documents/
+LICENSE.md
+README.md
+Dockerfile
+.dockerignore

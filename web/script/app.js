@@ -2,7 +2,7 @@
  * ImageTransformerClient - ES6 class for handling image transformations via Socket.IO
  */
 class ImageTransformerClient {
-    constructor(serverUrl = 'http://localhost:8080') {
+    constructor(serverUrl = 'http://localhost:4040') {
         this.serverUrl = serverUrl;
         this.socket = null;
         this.selectedFile = null;
@@ -953,7 +953,7 @@ class ImageTransformerClient {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Create instance of the client
-    const client = new ImageTransformerClient('http://localhost:8080');
+    const client = new ImageTransformerClient('http://localhost:4040');
     
     // Make client accessible globally for debugging (optional)
     window.imageTransformer = client;

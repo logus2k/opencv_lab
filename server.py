@@ -586,5 +586,5 @@ app.router.add_get('/favicon.ico', favicon)
 
 if __name__ == '__main__':
     print("Starting Image Transformation Server...")
-    print("Server running on http://localhost:8080")
-    web.run_app(app, host='0.0.0.0', port=8080)
+    print("Server running on http://localhost:4040")
+    web.run_app(app, host='0.0.0.0', port=4040)
