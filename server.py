@@ -7,7 +7,8 @@ from image_transformer import ImageTransformer
 # Create a Socket.IO server
 sio = socketio.AsyncServer(
     async_mode='aiohttp',
-    cors_allowed_origins='*'  # Allow all origins for development
+    cors_allowed_origins='*',  # Allow all origins for development
+    max_http_buffer_size=50 * 1024 * 1024  # 50MB to handle large images
 )
 
 # Create aiohttp web app
