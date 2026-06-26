@@ -4,3 +4,11 @@ services:
     ports:
       - "4040:4040"
     restart: unless-stopped
+    # Shared edge network (proxy + monitoring); survives Docker/WSL restarts
+    # (the previous per-project default network did not).
+    networks:
+      - logus2k_network
+
+networks:
+  logus2k_network:
+    external: true
